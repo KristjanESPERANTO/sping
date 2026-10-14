@@ -6,6 +6,9 @@
 .PARAMETER Target
     One or more hostnames or IP addresses to ping.
 
+.PARAMETER List
+    Name of a target list in sping.ini next to this script.
+
 .PARAMETER n
     Number of pings to send. Default: 0 (unlimited).
 
@@ -23,14 +26,19 @@
 
 .EXAMPLE
     sping google.de 8.8.8.8
+    sping -l itcs
     sping 192.168.1.1 -i 500
     sping server01 -n 20
     sping 8.8.8.8 -NoSound -NoLog
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory, Position = 0, ValueFromRemainingArguments = $true)]
+    [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
     [string[]]$Target,
+
+    [Parameter()]
+    [Alias('l')]
+    [string]$List,
 
     [Parameter()]
     [int]$n = 0,           # 0 = unlimited
@@ -65,19 +73,79 @@ $logFile         = $null
 # ─────────────────────────────────────────────────────────────────────────────
 #  Resolve targets
 # ─────────────────────────────────────────────────────────────────────────────
+if ($List) {
+    if ($Target.Count -gt 0) {
+        Write-Host 'sping: Use either -l <list> or direct targets, not both.' -ForegroundColor Red
+        exit 1
+    }
+
+    $listFile = Join-Path $PSScriptRoot 'sping.ini'
+    if (-not (Test-Path -LiteralPath $listFile -PathType Leaf)) {
+        Write-Host "sping: Target list file not found: $listFile" -ForegroundColor Red
+        exit 1
+    }
+
+    $listTargets = [System.Collections.Generic.List[string]]::new()
+    $currentSection = ''
+    $foundRequestedList = $false
+    foreach ($line in [System.IO.File]::ReadAllLines($listFile)) {
+        $trimmedLine = $line.Trim()
+        if (-not $trimmedLine -or $trimmedLine.StartsWith(';') -or $trimmedLine.StartsWith('#')) { continue }
+
+        if ($trimmedLine -match '^\[([^\]]+)\]$') {
+            $currentSection = $Matches[1].Trim()
+            if ([string]::Equals($currentSection, $List, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $foundRequestedList = $true
+            }
+            continue
+        }
+
+        if ($trimmedLine -match '^([^=]+?)\s*=\s*(.*)$') {
+            $key = $Matches[1].Trim()
+            $value = $Matches[2]
+            $isListSection = [string]::Equals($currentSection, 'lists', [System.StringComparison]::OrdinalIgnoreCase) -or
+                [string]::Equals($currentSection, 'targets', [System.StringComparison]::OrdinalIgnoreCase)
+            $isNamedList = $isListSection -and
+                [string]::Equals($key, $List, [System.StringComparison]::OrdinalIgnoreCase)
+            $isLegacyList = [string]::Equals($currentSection, $List, [System.StringComparison]::OrdinalIgnoreCase) -and
+                $key -match '^targets?$'
+            if ($isNamedList -or $isLegacyList) {
+                $foundRequestedList = $true
+                foreach ($listTarget in ($value -split ',')) {
+                    $listTarget = $listTarget.Trim()
+                    if ($listTarget) { $listTargets.Add($listTarget) }
+                }
+            }
+        }
+    }
+
+    if (-not $foundRequestedList) {
+        Write-Host "sping: List '$List' was not found in $listFile." -ForegroundColor Red
+        exit 1
+    }
+    if ($listTargets.Count -eq 0) {
+        Write-Host "sping: List '$List' contains no targets." -ForegroundColor Red
+        exit 1
+    }
+    $Target = $listTargets.ToArray()
+} elseif ($Target.Count -eq 0) {
+    Write-Host 'sping: Provide targets or use -l <list>.' -ForegroundColor Red
+    exit 1
+}
+
 foreach ($targetValue in $Target) {
     foreach ($targetName in ($targetValue -split ',')) {
         $targetName = $targetName.Trim()
         if (-not $targetName) { continue }
 
-        $resolvedIP = $null
-        try {
-            $dnsResult  = [System.Net.Dns]::GetHostEntry($targetName)
-            $resolvedIP = ($dnsResult.AddressList | Select-Object -First 1).ToString()
-        } catch {
-            if ($targetName -match '^\d{1,3}(\.\d{1,3}){3}$') {
-                $resolvedIP = $targetName
-            } else {
+        $parsedAddress = $null
+        if ([System.Net.IPAddress]::TryParse($targetName, [ref]$parsedAddress)) {
+            $resolvedIP = $parsedAddress.ToString()
+        } else {
+            try {
+                $dnsResult  = [System.Net.Dns]::GetHostEntry($targetName)
+                $resolvedIP = ($dnsResult.AddressList | Select-Object -First 1).ToString()
+            } catch {
                 Write-Host "sping: Cannot resolve hostname '$targetName'." -ForegroundColor Red
                 exit 1
             }

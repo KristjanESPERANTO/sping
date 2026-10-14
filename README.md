@@ -50,7 +50,7 @@ From any new terminal window, `sping` will work from any directory.
 ## Usage
 
 ```cmd
-sping <target> [<target> ...] [-n <count>] [-i <interval>] [-w <timeout>] [-NoSound] [-NoLog]
+sping <target> [<target> ...] [-l <list>] [-n <count>] [-i <interval>] [-w <timeout>] [-NoSound] [-NoLog]
 ```
 
 Follows Windows `ping` syntax where possible:
@@ -67,6 +67,7 @@ Follows Windows `ping` syntax where possible:
 | Parameter  | Default         | Description                              |
 | ---------- | --------------- | ---------------------------------------- |
 | `<target>` | –               | One or more hostnames or IP addresses    |
+| `-l <name>` | –              | Load a named target list from `sping.ini`|
 | `-n <int>` | `0` (unlimited) | Pings per target, then print summary     |
 | `-i <int>` | `1000`          | Interval between pings in ms             |
 | `-w <int>` | `3000`          | Timeout per ping in ms                   |
@@ -79,6 +80,7 @@ Follows Windows `ping` syntax where possible:
 sping google.com                 # Continuous ping with dashboard, sound and log
 sping 192.168.1.1 8.8.8.8        # Monitor multiple targets in parallel
 sping server01,server02 -n 10    # Comma-separated targets, 10 pings each
+sping -l itcs                    # Use the itcs list from sping.ini
 sping 192.168.1.1 -i 500        # Faster interval (500 ms)
 sping server01 -n 20             # 20 pings, then print summary and exit
 sping 8.8.8.8 -NoSound          # Silent monitoring
@@ -109,6 +111,18 @@ For multiple targets, the session is written to `sping_multiple_targets_<date>_<
 ...
 # Session ended: 2026-02-24 14:45:00  |  Sent: 900  Received: 898  Lost: 2
 ```
+
+## Target Lists
+
+Create `sping.ini` in the same directory as `sping.ps1`. Add each list as a key under `[lists]`; separate hostnames or IP addresses with commas:
+
+```ini
+[lists]
+itcs = switch01, 10.20.0.1, 10.20.0.2
+printers = printer01, 10.30.0.15
+```
+
+Run a list with `sping -l itcs`. List names are case-insensitive. Direct targets and `-l` cannot be used in the same command. `[targets]` and the previous format with one section per list are also supported.
 
 Disable logging: `-NoLog`
 

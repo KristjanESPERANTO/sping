@@ -1,0 +1,6 @@
+; Define named lists below and run them with: sping -l <name>
+[lists]
+; servers = server01, server02, server03
+; network = gateway01, switch01, accesspoint01
+; printers = printer01, printer02
+; public-dns = 1.1.1.1, 8.8.8.8
