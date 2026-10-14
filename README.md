@@ -50,7 +50,7 @@ From any new terminal window, `sping` will work from any directory.
 ## Usage
 
 ```cmd
-sping <target> [-n <count>] [-i <interval>] [-w <timeout>] [-NoSound] [-NoLog]
+sping <target> [<target> ...] [-n <count>] [-i <interval>] [-w <timeout>] [-NoSound] [-NoLog]
 ```
 
 Follows Windows `ping` syntax where possible:
@@ -66,8 +66,8 @@ Follows Windows `ping` syntax where possible:
 
 | Parameter  | Default         | Description                              |
 | ---------- | --------------- | ---------------------------------------- |
-| `<target>` | –               | Hostname or IP address (required)        |
-| `-n <int>` | `0` (unlimited) | Number of pings, then print summary      |
+| `<target>` | –               | One or more hostnames or IP addresses    |
+| `-n <int>` | `0` (unlimited) | Pings per target, then print summary     |
 | `-i <int>` | `1000`          | Interval between pings in ms             |
 | `-w <int>` | `3000`          | Timeout per ping in ms                   |
 | `-NoSound` | –               | Disable sound alerts                     |
@@ -77,6 +77,8 @@ Follows Windows `ping` syntax where possible:
 
 ```powershell
 sping google.com                 # Continuous ping with dashboard, sound and log
+sping 192.168.1.1 8.8.8.8        # Monitor multiple targets in parallel
+sping server01,server02 -n 10    # Comma-separated targets, 10 pings each
 sping 192.168.1.1 -i 500        # Faster interval (500 ms)
 sping server01 -n 20             # 20 pings, then print summary and exit
 sping 8.8.8.8 -NoSound          # Silent monitoring
@@ -93,10 +95,12 @@ sping_<host>_<date>_<time>.log
 
 Example: `sping_google.com_2026-02-24_1430.log`
 
+For multiple targets, the session is written to `sping_multiple_targets_<date>_<time>.log`; each ping and status change includes its target.
+
 **Log format:**
 
 ```cmd
-# sping v1.0.0  |  Session started: 2026-02-24 14:30:00  |  Target: google.com [142.250.185.99]
+# sping v1.0.0  |  Session started: 2026-02-24 14:30:00  |  Targets: google.com [142.250.185.99]
 # Interval: 1000ms  |  Timeout: 3000ms  |  Count: unlimited
 [2026-02-24 14:30:00.123] OK        12 ms
 [2026-02-24 14:30:01.145] OK        11 ms
